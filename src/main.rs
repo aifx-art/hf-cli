@@ -1,14 +1,13 @@
-use anyhow::{Error as E, Result};
+use anyhow::Result;
 
 use clap::{arg, command, Parser};
 use hf_hub::{
     api::{
-        tokio::{ApiBuilder, Metadata},
+        tokio::Metadata,
         RepoInfo,
     },
     Repo,
 };
-use tokenizers::Tokenizer;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 use std::{
