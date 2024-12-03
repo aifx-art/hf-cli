@@ -23,15 +23,19 @@ struct Args {
     /// file to upload
     #[arg(long, value_name = "FILE")]
     file_upload: Option<String>,
+    /// remote repo to upload to
     #[arg(long)]
     repo_upload: Option<String>,
 
+    /// get info about a remote file
     #[arg(long)]
     file_info: Option<String>,
 
+    /// get info about a remote repo
     #[arg(long)]
     repo_info: Option<String>,
 
+    /// set your local huggingface token
     #[arg(long)]
     set_token: Option<String>,
 }
