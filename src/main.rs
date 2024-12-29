@@ -2,10 +2,7 @@ use anyhow::Result;
 
 use clap::{arg, command, Parser};
 use hf_hub::{
-    api::{
-        tokio::Metadata,
-        RepoInfo,
-    },
+    api::{tokio::Metadata, RepoInfo},
     Repo,
 };
 use tokio::{fs::File, io::AsyncWriteExt};
@@ -23,9 +20,14 @@ struct Args {
     /// file to upload
     #[arg(long, value_name = "FILE")]
     file_upload: Option<String>,
+
     /// remote repo to upload to
     #[arg(long)]
-    repo_upload: Option<String>,
+    repo: Option<String>,
+
+    /// file to upload
+    #[arg(long, value_name = "FILE")]
+    file_download: Option<String>,
 
     /// get info about a remote file
     #[arg(long)]
@@ -33,56 +35,80 @@ struct Args {
 
     /// get info about a remote repo
     #[arg(long)]
-    repo_info: Option<String>,
+    repo_info: bool,
 
     /// set your local huggingface token
     #[arg(long)]
     set_token: Option<String>,
+   
 }
 
 #[tokio::main]
 async fn main() {
-    
     let Args {
         file_upload,
-        repo_upload,
+        repo,
+        file_download,
         file_info,
         repo_info,
         set_token,
     } = Args::parse();
 
-    match file_upload {
-        Some(filename) => {
-            let repo = repo_upload.expect("Must specify upload repo");
-            match hf_upload_file(filename, repo).await {
-                Ok(res) => {
-                    println!("{:?}", res)
+    match repo {
+        Some(repo) => {
+            match file_upload {
+                Some(filename) => {
+                    //let repo = repo.clone().expect("Must specify upload repo");
+                    match hf_upload_file(filename, repo.clone()).await {
+                        Ok(res) => {
+                            println!("{:?}", res)
+                        }
+                        Err(e) => println!("{:?}", e),
+                    };
                 }
-                Err(e) => println!("{:?}", e),
-            };
+                None => {}
+            }
+
+            match file_download {
+                Some(filename) => {
+                   // let repo = repo.expect("Must specify upload repo");
+                    match hf_download_file(filename, repo.clone()).await {
+                        Ok(res) => {
+                            println!("{:?}", res)
+                        }
+                        Err(e) => println!("{:?}", e),
+                    };
+                }
+                None => {}
+            }
+
+            match file_info {
+                Some(filename) => {
+                   // let repo = repo_info.clone().expect("Must specify info repo");
+                    match hf_get_file_info(filename, repo.clone()).await {
+                        Ok(res) => {
+                            println!("{:?}", res)
+                        }
+                        Err(e) => println!("{:?}", e),
+                    };
+                }
+                None => match repo_info {
+                    true => {
+                        match hf_get_repo_info(repo.clone()).await {
+                            Ok(res) => {
+                                println!("{:?}", res)
+                            }
+                            Err(e) => println!("{:?}", e),
+                        }
+                    },
+                    false => {
+
+                    },
+                }
+                   
+            }
         }
         None => {}
-    }
-
-    match file_info {
-        Some(filename) => {
-            let repo = repo_info.clone().expect("Must specify info repo");
-            match hf_get_file_info(filename, repo).await {
-                Ok(res) => {
-                    println!("{:?}", res)
-                }
-                Err(e) => println!("{:?}", e),
-            };
-        }
-        None => match repo_info {
-            Some(reponame) => match hf_get_repo_info(reponame).await {
-                Ok(res) => {
-                    println!("{:?}", res)
-                }
-                Err(e) => println!("{:?}", e),
-            },
-            None => {}
-        },
     }
 
     match set_token {
@@ -152,6 +178,19 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
         .await?;
 
     println!("{:?}", res);
+
+    Ok(())
+}
+
+async fn hf_download_file(filename: String, reponame: String) -> Result<()> {
+    let api = hf_hub::api::tokio::Api::new()?;
+    let repo = Repo::model(reponame);
+    let api_repo = api.repo(repo);
+    let res = api_repo.download(&filename).await;
+    println!("{:?}", res);
+
+    let path = Path::new(&filename);
+    println!("Downloaded to your HF .cache folder\n {:?}", path);
 
     Ok(())
 }
