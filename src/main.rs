@@ -29,6 +29,10 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     file_download: Option<String>,
 
+     /// copy the file to dir
+     #[arg(long)]
+     copy_file: Option<String>,
+
     /// get info about a remote file
     #[arg(long)]
     file_info: Option<String>,
@@ -49,6 +53,7 @@ async fn main() {
         file_upload,
         repo,
         file_download,
+        copy_file,
         file_info,
         repo_info,
         set_token,
@@ -72,6 +77,17 @@ async fn main() {
             match file_download {
                 Some(filename) => {
                    // let repo = repo.expect("Must specify upload repo");
+                   let cp = match copy_file {
+                    Some(f) => {
+                        println!("f {:?}",f);
+                        if f == "" {
+                            //fs::ReadDir
+                        }else {
+
+                        }
+                    },
+                    None => None,
+                                   };
                     match hf_download_file(filename, repo.clone()).await {
                         Ok(res) => {
                             println!("{:?}", res)
