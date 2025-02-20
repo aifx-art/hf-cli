@@ -182,17 +182,30 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
     Ok(())
 }
 
-async fn hf_download_file(filename: String, reponame: String) -> Result<()> {
+async fn hf_download_file(filename: String, reponame: String, copy_to_path: Option<String>) -> Result<()> {
     let api = hf_hub::api::tokio::Api::new()?;
     let repo = Repo::model(reponame);
     let api_repo = api.repo(repo);
     let res = api_repo.download(&filename).await;
     println!("{:?}", res);
+    match res {
+        Ok(p) => {
+            println!("Downloaded to your HF .cache folder\n {:?}", p);
+            match copy_to_path {
+                Some(cp) => {
+                    fs::copy(p, cp);
+                },
+                None => {},
+            }
+            return Ok(())
+        },
+        Err(e) => return Err(e.into()),
+    }
 
-    let path = Path::new(&filename);
-    println!("Downloaded to your HF .cache folder\n {:?}", path);
+    //let path = Path::new(&filename);
+    
 
-    Ok(())
+    
 }
 
 pub async fn set_huggingface_token(token: String) -> Result<(), String> {
