@@ -29,9 +29,9 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     file_download: Option<String>,
 
-     /// copy the file to dir
-     #[arg(long)]
-     copy_file: Option<String>,
+    /// copy the file to dir
+    #[arg(long)]
+    copy_file: Option<String>,
 
     /// get info about a remote file
     #[arg(long)]
@@ -44,7 +44,6 @@ struct Args {
     /// set your local huggingface token
     #[arg(long)]
     set_token: Option<String>,
-   
 }
 
 #[tokio::main]
@@ -76,19 +75,9 @@ async fn main() {
 
             match file_download {
                 Some(filename) => {
-                   // let repo = repo.expect("Must specify upload repo");
-                   let cp = match copy_file {
-                    Some(f) => {
-                        println!("f {:?}",f);
-                        if f == "" {
-                            //fs::ReadDir
-                        }else {
-
-                        }
-                    },
-                    None => None,
-                                   };
-                    match hf_download_file(filename, repo.clone()).await {
+                    // let repo = repo.expect("Must specify upload repo");
+                    
+                    match hf_download_file(filename, repo.clone(), copy_file).await {
                         Ok(res) => {
                             println!("{:?}", res)
                         }
@@ -100,7 +89,7 @@ async fn main() {
 
             match file_info {
                 Some(filename) => {
-                   // let repo = repo_info.clone().expect("Must specify info repo");
+                    // let repo = repo_info.clone().expect("Must specify info repo");
                     match hf_get_file_info(filename, repo.clone()).await {
                         Ok(res) => {
                             println!("{:?}", res)
@@ -109,19 +98,14 @@ async fn main() {
                     };
                 }
                 None => match repo_info {
-                    true => {
-                        match hf_get_repo_info(repo.clone()).await {
-                            Ok(res) => {
-                                println!("{:?}", res)
-                            }
-                            Err(e) => println!("{:?}", e),
+                    true => match hf_get_repo_info(repo.clone()).await {
+                        Ok(res) => {
+                            println!("{:?}", res)
                         }
+                        Err(e) => println!("{:?}", e),
                     },
-                    false => {
-
-                    },
-                }
-                   
+                    false => {}
+                },
             }
         }
         None => {}
@@ -159,6 +143,8 @@ async fn hf_get_repo_info(reponame: String) -> Result<RepoInfo> {
 
 async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
     println!("upload file {} to {}", filename, reponame);
+    let rel_filename = filename.clone();
+    
     let path = Path::new(&filename);
     let data: Vec<u8> = fs::read(path)?; //.await?;
     let filename = path
@@ -167,9 +153,9 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
         .to_str()
         .expect("provide valid string")
         .to_string();
-    println!("file data length {:?}", data.len());
+    println!("{:?} file data length {:?}",filename, data.len());
 
-    let files = [(data, filename)];
+    let files = [(data, rel_filename)];
 
     //let api = ApiBuilder::new().build()
     let api = hf_hub::api::tokio::Api::new()?;
@@ -188,7 +174,7 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
         .upload_files(
             files,
             None,
-            "update multiple files!".to_string().into(),
+            "update the files.".to_string().into(),
             false,
         )
         .await?;
@@ -198,30 +184,41 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
     Ok(())
 }
 
-async fn hf_download_file(filename: String, reponame: String, copy_to_path: Option<String>) -> Result<()> {
+async fn hf_download_file(
+    filename: String,
+    reponame: String,
+    copy_to_path: Option<String>,
+) -> Result<()> {
     let api = hf_hub::api::tokio::Api::new()?;
     let repo = Repo::model(reponame);
     let api_repo = api.repo(repo);
     let res = api_repo.download(&filename).await;
     println!("{:?}", res);
+
     match res {
         Ok(p) => {
             println!("Downloaded to your HF .cache folder\n {:?}", p);
             match copy_to_path {
                 Some(cp) => {
-                    fs::copy(p, cp);
-                },
-                None => {},
+                    println!("copy to path {:?}",cp);
+                    let cp = if cp == ".".to_string() {
+                        Path::new(&cp).join(p.file_name().unwrap())
+                    } else {
+                        Path::new(&cp).to_path_buf()
+                    };
+                    let res = fs::copy(p, cp);
+                    println!("{:?}",res);
+                }
+                None => {
+                    println!("no local copy ");
+                }
             }
-            return Ok(())
-        },
+            return Ok(());
+        }
         Err(e) => return Err(e.into()),
     }
 
     //let path = Path::new(&filename);
-    
-
-    
 }
 
 pub async fn set_huggingface_token(token: String) -> Result<(), String> {
