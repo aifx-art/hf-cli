@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.91"
-clap = { version = "4.5.20", features = ["derive"] }
+anyhow = "1.0.97"
+clap = { version = "4.5.32", features = ["derive"] }
 #hf-hub = {version = "0.3.2"}
 hf-hub = {git = "https://github.com/aifx-art/hf-hub.git", branch = "wip"}
-serde_json = "1.0.133"
-tokenizers = "0.20.1"
-tokio = { version = "1.36.0", features = ["full"] }
+serde_json = "1.0.140"
+tokenizers = "0.21.1"
+tokio = { version = "1.44.1", features = ["full"] }
