@@ -19,7 +19,7 @@ use std::{
 struct Args {
     /// file to upload
     #[arg(long, value_name = "FILE")]
-    file_upload: Option<String>,
+    upload_file: Option<String>,
 
     /// remote repo to upload to
     #[arg(long)]
@@ -27,7 +27,7 @@ struct Args {
 
     /// file to upload
     #[arg(long, value_name = "FILE")]
-    file_download: Option<String>,
+    download_file: Option<String>,
 
     /// copy the file to dir
     #[arg(long)]
@@ -49,9 +49,9 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let Args {
-        file_upload,
+        upload_file,
         repo,
-        file_download,
+        download_file,
         copy_file,
         file_info,
         repo_info,
@@ -60,7 +60,7 @@ async fn main() {
 
     match repo {
         Some(repo) => {
-            match file_upload {
+            match upload_file {
                 Some(filename) => {
                     //let repo = repo.clone().expect("Must specify upload repo");
                     match hf_upload_file(filename, repo.clone()).await {
@@ -73,7 +73,7 @@ async fn main() {
                 None => {}
             }
 
-            match file_download {
+            match download_file {
                 Some(filename) => {
                     // let repo = repo.expect("Must specify upload repo");
                     
@@ -180,7 +180,7 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
         .await?;
 
     println!("{:?}", res);
-
+    println!("Finished uploading files.");
     Ok(())
 }
 
