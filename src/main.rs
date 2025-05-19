@@ -21,7 +21,7 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     upload_file: Option<String>,
 
-    /// remote repo to upload to
+    /// remote repo to interact with
     #[arg(long)]
     repo: Option<String>,
 
@@ -29,7 +29,7 @@ struct Args {
     #[arg(long, value_name = "FILE")]
     download_file: Option<String>,
 
-    /// copy the file to dir
+    /// copy the file/s to dir
     #[arg(long)]
     copy_file: Option<String>,
 
@@ -40,6 +40,10 @@ struct Args {
     /// get info about a remote repo
     #[arg(long)]
     repo_info: bool,
+
+    /// download the entire repo
+    #[arg(long)]
+    download_repo: bool,
 
     /// set your local huggingface token
     #[arg(long)]
@@ -55,6 +59,7 @@ async fn main() {
         copy_file,
         file_info,
         repo_info,
+        download_repo,
         set_token,
     } = Args::parse();
 
@@ -76,7 +81,7 @@ async fn main() {
             match download_file {
                 Some(filename) => {
                     // let repo = repo.expect("Must specify upload repo");
-                    
+
                     match hf_download_file(filename, repo.clone(), copy_file).await {
                         Ok(res) => {
                             println!("{:?}", res)
@@ -85,6 +90,19 @@ async fn main() {
                     };
                 }
                 None => {}
+            }
+            match download_repo {
+                true => {
+                    // let repo = repo.expect("Must specify upload repo");
+                    //TODO get all the files and downlaod them 
+                   /*  match hf_download_file(filename, repo.clone(), copy_file).await {
+                        Ok(res) => {
+                            println!("{:?}", res)
+                        }
+                        Err(e) => println!("{:?}", e),
+                    }; */
+                }
+                false => {}
             }
 
             match file_info {
@@ -144,7 +162,7 @@ async fn hf_get_repo_info(reponame: String) -> Result<RepoInfo> {
 async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
     println!("upload file {} to {}", filename, reponame);
     let rel_filename = filename.clone();
-    
+
     let path = Path::new(&filename);
     let data: Vec<u8> = fs::read(path)?; //.await?;
     let filename = path
@@ -153,7 +171,7 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
         .to_str()
         .expect("provide valid string")
         .to_string();
-    println!("{:?} file data length {:?}",filename, data.len());
+    println!("{:?} file data length {:?}", filename, data.len());
 
     let files = [(data, rel_filename)];
 
@@ -171,12 +189,7 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
 
     println!("uploading files...");
     let res = api_repo
-        .upload_files(
-            files,
-            None,
-            "update the files.".to_string().into(),
-            false,
-        )
+        .upload_files(files, None, "update the files.".to_string().into(), false)
         .await?;
 
     println!("{:?}", res);
@@ -200,14 +213,14 @@ async fn hf_download_file(
             println!("Downloaded to your HF .cache folder\n {:?}", p);
             match copy_to_path {
                 Some(cp) => {
-                    println!("copy to path {:?}",cp);
+                    println!("copy to path {:?}", cp);
                     let cp = if cp == ".".to_string() {
                         Path::new(&cp).join(p.file_name().unwrap())
                     } else {
                         Path::new(&cp).to_path_buf()
                     };
                     let res = fs::copy(p, cp);
-                    println!("{:?}",res);
+                    println!("{:?}", res);
                 }
                 None => {
                     println!("no local copy ");
