@@ -3,7 +3,7 @@ use anyhow::Result;
 use clap::{arg, command, Parser};
 use hf_hub::{
     api::{tokio::Metadata, RepoInfo},
-    Repo,
+    Repo, RepoType,
 };
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -24,6 +24,9 @@ struct Args {
     /// remote repo to interact with
     #[arg(long)]
     repo: Option<String>,
+
+    #[arg(long)]
+    repotype: Option<RepoType>,
 
     /// file to upload
     #[arg(long, value_name = "FILE")]
@@ -51,7 +54,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let Args {
         upload_file,
         repo,
@@ -61,6 +64,7 @@ async fn main() {
         repo_info,
         download_repo,
         set_token,
+        repotype,
     } = Args::parse();
 
     match repo {
@@ -68,7 +72,8 @@ async fn main() {
             match upload_file {
                 Some(filename) => {
                     //let repo = repo.clone().expect("Must specify upload repo");
-                    match hf_upload_file(filename, repo.clone()).await {
+                    
+                    match hf_upload_file(filename, repo.clone(),repotype).await {
                         Ok(res) => {
                             println!("{:?}", res)
                         }
@@ -82,7 +87,7 @@ async fn main() {
                 Some(filename) => {
                     // let repo = repo.expect("Must specify upload repo");
 
-                    match hf_download_file(filename, repo.clone(), copy_file).await {
+                    match hf_download_file(filename, repo.clone(), copy_file.clone()).await {
                         Ok(res) => {
                             println!("{:?}", res)
                         }
@@ -93,14 +98,21 @@ async fn main() {
             }
             match download_repo {
                 true => {
-                    // let repo = repo.expect("Must specify upload repo");
-                    //TODO get all the files and downlaod them 
-                   /*  match hf_download_file(filename, repo.clone(), copy_file).await {
-                        Ok(res) => {
-                            println!("{:?}", res)
+                    //TODO get all the files and downlaod them
+                    let info = hf_get_repo_info(repo.clone()).await?;
+                    let mut files: Vec<String> = vec![];
+                    for s in info.siblings.into_iter() {
+                        files.push(s.rfilename);
+                    }
+                    println!("files {:?}", files);
+                    for f in files {
+                        match hf_download_file(f, repo.clone(), copy_file.clone()).await {
+                            Ok(res) => {
+                                println!("{:?}", res)
+                            }
+                            Err(e) => println!("{:?}", e),
                         }
-                        Err(e) => println!("{:?}", e),
-                    }; */
+                    }
                 }
                 false => {}
             }
@@ -138,6 +150,7 @@ async fn main() {
     }
 
     println!("done");
+    Ok(())
 }
 
 async fn hf_get_file_info(filename: String, reponame: String) -> Result<Metadata> {
@@ -159,8 +172,11 @@ async fn hf_get_repo_info(reponame: String) -> Result<RepoInfo> {
     Ok(repo_info)
 }
 
-async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
-    println!("upload file {} to {}", filename, reponame);
+//--repo-type=dataset
+async fn hf_upload_file(filename: String, reponame: String, repotype: Option<RepoType>) -> Result<()> {
+    let repotype= repotype.unwrap_or(RepoType::Model);
+
+    println!("upload file {} to {} of {:?}", filename, reponame, repotype);
     let rel_filename = filename.clone();
 
     let path = Path::new(&filename);
@@ -177,7 +193,10 @@ async fn hf_upload_file(filename: String, reponame: String) -> Result<()> {
 
     //let api = ApiBuilder::new().build()
     let api = hf_hub::api::tokio::Api::new()?;
-    let repo = Repo::model(reponame);
+    //let repo = Repo::model(reponame);
+    let repo = Repo::new(reponame, repotype);
+
+
     let api_repo = api.repo(repo);
 
     let files = files
