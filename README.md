@@ -3,10 +3,15 @@ A simple cli for interfacing with huggingface hub.
 **This is Experimental software and is subject to change.**
 
 
-To install build and copy the executable to your bin path
+To build
 
 ```
 cargo build --release
+```
+
+To install build and copy the executable to your bin path on linux
+
+```
 ./install-linux.sh
 ```
 
