@@ -9,7 +9,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use std::{
     fs::{self, ReadDir},
-    path::Path,
+    path::{Path, PathBuf},
 };
 //use tokio::fs::{self, ReadDir};
 //use std::path::Path;
@@ -20,6 +20,10 @@ struct Args {
     /// file to upload
     #[arg(long, value_name = "FILE")]
     upload_file: Option<String>,
+
+    /// file to upload
+    #[arg(long, value_name = "FILE")]
+    upload_repo: bool,
 
     /// remote repo to interact with
     #[arg(long)]
@@ -57,6 +61,7 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     let Args {
         upload_file,
+        upload_repo,
         repo,
         download_file,
         copy_file,
@@ -72,8 +77,8 @@ async fn main() -> anyhow::Result<()> {
             match upload_file {
                 Some(filename) => {
                     //let repo = repo.clone().expect("Must specify upload repo");
-                    
-                    match hf_upload_file(filename, repo.clone(),repotype).await {
+
+                    match hf_upload_file(filename, repo.clone(), repotype).await {
                         Ok(res) => {
                             println!("{:?}", res)
                         }
@@ -81,6 +86,22 @@ async fn main() -> anyhow::Result<()> {
                     };
                 }
                 None => {}
+            }
+
+            match upload_repo {
+                true => {
+                    let files = get_all_paths(".")?;
+                    //let repo = repo.clone().expect("Must specify upload repo");
+                    for file in files {
+                        match hf_upload_file(file, repo.clone(), repotype).await {
+                            Ok(res) => {
+                                println!("{:?}", res)
+                            }
+                            Err(e) => println!("{:?}", e),
+                        };
+                    }
+                }
+                false => {}
             }
 
             match download_file {
@@ -173,8 +194,12 @@ async fn hf_get_repo_info(reponame: String) -> Result<RepoInfo> {
 }
 
 //--repo-type=dataset
-async fn hf_upload_file(filename: String, reponame: String, repotype: Option<RepoType>) -> Result<()> {
-    let repotype= repotype.unwrap_or(RepoType::Model);
+async fn hf_upload_file(
+    filename: String,
+    reponame: String,
+    repotype: Option<RepoType>,
+) -> Result<()> {
+    let repotype = repotype.unwrap_or(RepoType::Model);
 
     println!("upload file {} to {} of {:?}", filename, reponame, repotype);
     let rel_filename = filename.clone();
@@ -195,7 +220,6 @@ async fn hf_upload_file(filename: String, reponame: String, repotype: Option<Rep
     let api = hf_hub::api::tokio::Api::new()?;
     //let repo = Repo::model(reponame);
     let repo = Repo::new(reponame, repotype);
-
 
     let api_repo = api.repo(repo);
 
@@ -291,4 +315,29 @@ pub async fn read_create_dir(path: &str) -> ReadDir {
         }
     };
     dir
+}
+
+fn get_all_paths(dir: &str) -> Result<Vec<String>> {
+    let base = Path::new(dir);
+    let mut paths = Vec::new();
+    collect_paths(base, base, &mut paths)?;
+    Ok(paths)
+}
+
+fn collect_paths(base: &Path, current: &Path, paths: &mut Vec<String>) -> Result<()> {
+    for entry in fs::read_dir(current)? {
+        let entry = entry?;
+        let path = entry.path();
+        
+        // Get path relative to base directory
+        if let Ok(rel_path) = path.strip_prefix(base) {
+            paths.push(rel_path.to_string_lossy().to_string());
+        }
+        
+        if path.is_dir() {
+            collect_paths(base, &path, paths)?;
+        }
+    }
+    
+    Ok(())
 }
