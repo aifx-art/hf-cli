@@ -2,8 +2,7 @@ use anyhow::Result;
 
 use clap::{arg, command, Parser};
 use hf_hub::{
-    api::{tokio::Metadata, RepoInfo},
-    Repo, RepoType,
+    Cache, Repo, RepoType, api::{RepoInfo, tokio::{ApiBuilder, Metadata}}
 };
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -40,6 +39,10 @@ struct Args {
     #[arg(long)]
     copy_file: Option<String>,
 
+    /// save them to path instead
+    #[arg(long)]
+    save_path: Option<String>,
+
     /// get info about a remote file
     #[arg(long)]
     file_info: Option<String>,
@@ -65,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
         repo,
         download_file,
         copy_file,
+        save_path,
         file_info,
         repo_info,
         download_repo,
@@ -108,7 +112,14 @@ async fn main() -> anyhow::Result<()> {
                 Some(filename) => {
                     // let repo = repo.expect("Must specify upload repo");
 
-                    match hf_download_file(filename, repo.clone(), copy_file.clone()).await {
+                    match hf_download_file(
+                        filename,
+                        repo.clone(),
+                        copy_file.clone(),
+                        save_path.clone(),
+                    )
+                    .await
+                    {
                         Ok(res) => {
                             println!("{:?}", res)
                         }
@@ -127,7 +138,14 @@ async fn main() -> anyhow::Result<()> {
                     }
                     println!("files {:?}", files);
                     for f in files {
-                        match hf_download_file(f, repo.clone(), copy_file.clone()).await {
+                        match hf_download_file(
+                            f,
+                            repo.clone(),
+                            copy_file.clone(),
+                            save_path.clone(),
+                        )
+                        .await
+                        {
                             Ok(res) => {
                                 println!("{:?}", res)
                             }
@@ -240,12 +258,34 @@ async fn hf_upload_file(
     Ok(())
 }
 
+fn cache_from_env() -> Cache {
+    let path = std::env::var("HF_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".cache")
+                .join("huggingface")
+        });
+    Cache::new(path)
+}
+
 async fn hf_download_file(
     filename: String,
     reponame: String,
     copy_to_path: Option<String>,
+    save_to_path: Option<String>,
 ) -> Result<()> {
-    let api = hf_hub::api::tokio::Api::new()?;
+    let cache = match save_to_path {
+        Some(path) => hf_hub::Cache::new(path.into()),
+        None => cache_from_env(), //newer versions... hf_hub::Cache::from_env(),
+    };
+
+    println!("HF Cache at {:?}", cache);
+
+    //let api = hf_hub::api::tokio::Api::new()?;
+    let api = ApiBuilder::new().with_cache_dir(cache.path().into()).build()?; // This uses the same cache for downloading
+
     let repo = Repo::model(reponame);
     let api_repo = api.repo(repo);
     let res = api_repo.download(&filename).await;
@@ -328,16 +368,16 @@ fn collect_paths(base: &Path, current: &Path, paths: &mut Vec<String>) -> Result
     for entry in fs::read_dir(current)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         // Get path relative to base directory
         if let Ok(rel_path) = path.strip_prefix(base) {
             paths.push(rel_path.to_string_lossy().to_string());
         }
-        
+
         if path.is_dir() {
             collect_paths(base, &path, paths)?;
         }
     }
-    
+
     Ok(())
 }
