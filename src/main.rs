@@ -39,7 +39,7 @@ struct Args {
     #[arg(long)]
     copy_file: Option<String>,
 
-    /// save them to path instead
+    /// save the file/s to path instead of local cache dir
     #[arg(long)]
     save_path: Option<String>,
 
@@ -250,7 +250,7 @@ async fn hf_upload_file(
 
     println!("uploading files...");
     let res = api_repo
-        .upload_files(files, None, "update the files.".to_string().into(), false)
+        .upload_files(files, None, "update the files. with hf_cli".to_string().into(), false)
         .await?;
 
     println!("{:?}", res);
