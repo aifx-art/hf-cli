@@ -306,7 +306,7 @@ async fn hf_download_file(
                     println!("{:?}", res);
                 }
                 None => {
-                    println!("no local copy ");
+                    //println!("no local copy ");
                 }
             }
             return Ok(());
